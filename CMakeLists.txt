@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.25)
+project(FreePolygonSpace)
+
+set(CMAKE_CXX_STANDARD 17)
+find_package( OpenCV REQUIRED PATHS /Users/luisbracamontes/Documents/Cpp/opencv_install )
+#find_package(wxWidgets COMPONENTS core base)
+#include(${wxWidgets_USE_FILE})
+include_directories( include ${OpenCV_INCLUDE_DIRS} )
+link_directories( ${OpenCV_LIB_DIR} )
+add_executable(FreePolygonSpace main.cpp src/FreeSpacePolygon.cpp src/RrtStar.cpp)
+target_link_libraries(FreePolygonSpace ${OpenCV_LIBS})
