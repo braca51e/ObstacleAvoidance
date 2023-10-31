@@ -16,12 +16,12 @@ int main(int argc, char** argv) {
 
     double startX = 66.0;
     double startY = 45.0;
-    double goalX = 35.0;
-    double goalY = 70.0;
+    double goalX = 46.0;
+    double goalY = 45.0;
     double stepSize = 5.0;
-    double maxIterations = 1000;
+    double maxIterations = 2000;
     double closeNodePenalty = 1.0; // Adjust this penalty as needed
-    double goalReachedRadius = 3.0;
+    double goalReachedRadius = 2.0;
     double tau_obs = 0.8;
 
     RRTStarAR planner(map, startX, startY, goalX, goalY, stepSize, maxIterations, closeNodePenalty, goalReachedRadius, tau_obs);
@@ -32,6 +32,13 @@ int main(int argc, char** argv) {
     for (int i = 0; i < path.size(); i++) {
         std::cout << "Node " << i << ": " << path[i].x << ", " << path[i].y << std::endl;
     }
+
+    // Draw the path on the map
+    for (int i = 0; i < path.size() - 1; i++) {
+        cv::line(map, cv::Point(static_cast<int>(path[i].y), static_cast<int>(path[i].x)), cv::Point(static_cast<int>(path[i + 1].y), static_cast<int>(path[i + 1].x)), cv::Scalar(0, 0, 255), 2);
+    }
+    cv::imshow("Path", map);
+    cv::waitKey(0);
 
     return 0;
 }
