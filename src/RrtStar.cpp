@@ -133,7 +133,7 @@ void RRTStarAR::Rewire(const std::vector<Node>& neighbors, Node& newNode, int cl
         if (CollisionFree(i, newNode) &&
             (newNode.cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2))) <
             nodes[i].cost) {
-            //@TODO I'm assigning an index that does not exist yet as new node has not been added to the tree
+            // @TODO I'm assigning an index that does not exist yet as new node has not been added to the tree
             nodes[i].parent = nodes.size();
             nodes[i].cost = newNode.cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2));
         }
