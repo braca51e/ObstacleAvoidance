@@ -15,9 +15,9 @@
 
 struct Node {
     double x, y;
-    Node* parent;
+    int parent;
     double cost;
-    Node(double x = 0.0, double y = 0.0, Node* parent = nullptr, double cost = 0.0) : x(x), y(y), parent(parent), cost(cost) {}
+    Node(double x = 0.0, double y = 0.0, int parent = -1, double cost = 0.0) : x(x), y(y), parent(parent), cost(cost) {}
 };
 
 class RRTStarAR {
@@ -43,15 +43,15 @@ private:
     std::vector<Node> nodes;
 
     Node GenerateRandomNode() const;
-    Node* FindNearestNode(const Node& randomNode);
-    Node Steer(const Node* from, const Node& to) const;
+    int FindNearestNode(const Node& randomNode);
+    Node Steer(const int& from, const Node& to) const;
     bool IsValidNode(const Node& node);
-    std::pair<int, double> FindClosestAndCost(const Node& from, const Node& to);
-    bool Rewire(Node& newNode, int closestIndex);
+    std::pair<int, double> FindClosestAndCost(const std::vector<Node>& neighbors,  const Node& newNode, int nearest);
+    void Rewire(const std::vector<Node>& neighbors, Node& newNode, int closestIndex);
     bool IsGoalReached(const Node& node) const;
     static std::vector<std::pair<int, int>> BresenhamLine(int x1, int y1, int x2, int y2);
-    bool CollisionFree(const Node* nearestNode, const Node& newNode);
-    std::vector<Node> FindNeighboors(const Node& newNode);
+    bool CollisionFree(const int& nearestNode, const Node& newNode);
+    std::vector<Node> FindNeighbors(const Node& newNode);
 
 };
 

@@ -8,21 +8,23 @@ void RRTStarAR::GenerateRRTStarAR() {
 
     // Initialize the tree with the starting node
     nodes.clear();
-    nodes.push_back({startX, startY, nullptr, 0.0});
+    nodes.push_back({startX, startY, -1, 0.0});
 
     for (int iteration = 0; iteration < maxIterations; ++iteration) {
         Node randomNode = GenerateRandomNode();
-        Node* nearestNode = FindNearestNode(randomNode);
+        int nearestNode = FindNearestNode(randomNode);
         // Attempt to steer from the nearest node towards the random node
         Node newNode = Steer(nearestNode, randomNode);
         // Check if the new node is valid (not in collision)
         if (CollisionFree(nearestNode, newNode)) {
-            //@TODO: Get all neighboors within a radius
-            //std::vector<Node> neighboors = FindNeighboors(newNode);
-            newNode.parent = &nodes.back();
-            nodes.push_back(newNode);
+            std::vector<Node> neighbors = FindNeighbors(newNode);
+            std::pair<int, double> pair_search = FindClosestAndCost(neighbors, newNode, nearestNode);
+            newNode.parent = pair_search.first;
+            newNode.cost = pair_search.second;
+            // Rewire the tree with the new node
+            Rewire(neighbors, newNode, pair_search.first);
         }
-
+        nodes.push_back(newNode);
         if (IsGoalReached(newNode)){
             break;
         }
@@ -39,19 +41,19 @@ Node RRTStarAR::GenerateRandomNode() const {
     double x = xDist(gen);
     double y = yDist(gen);
 
-    return {x, y, nullptr, 0.0};
+    return {x, y, -1, 0.0};
 }
 
 // Function to find the nearest node in the tree to the given random node
-Node* RRTStarAR::FindNearestNode(const Node& randomNode) {
+int RRTStarAR::FindNearestNode(const Node& randomNode) {
     // Assign max value
     double minDist = std::numeric_limits<double>::max();
-    Node* nearestNode = nullptr;
+    int nearestNode = 0;
 
     for (int i = 0; i < nodes.size(); ++i) {
         double dist = std::sqrt(std::pow(randomNode.x - nodes[i].x, 2) + std::pow(randomNode.y - nodes[i].y, 2));
         if (dist < minDist) {
-            nearestNode = &nodes[i];
+            nearestNode = i;
             minDist = dist;
         }
     }
@@ -59,9 +61,9 @@ Node* RRTStarAR::FindNearestNode(const Node& randomNode) {
 }
 
 // Function to steer from the 'from' node towards the 'to' node with a specified step size
-Node RRTStarAR::Steer(const Node* from, const Node& to) const {
-    double dx = to.x - from->x;
-    double dy = to.y - from->y;
+Node RRTStarAR::Steer(const int& from, const Node& to) const {
+    double dx = to.x - nodes[from].x;
+    double dy = to.y - nodes[from].y;
     double dist = std::sqrt(dx * dx + dy * dy);
 
     if (dist <= stepSize) {
@@ -69,17 +71,17 @@ Node RRTStarAR::Steer(const Node* from, const Node& to) const {
     }
 
     double ratio = stepSize / dist;
-    double newX = from->x + dx * ratio;
-    double newY = from->y + dy * ratio;
+    double newX = nodes[from].x + dx * ratio;
+    double newY = nodes[from].y + dy * ratio;
 
-    return {newX, newY, nullptr, 0.0};
+    return {newX, newY, -1, 0.0};
 }
 
 // Function to check if a node is valid (not in collision with the map)
 //bool RRTStarAR::IsValidNode(const Node& node) {
-bool RRTStarAR::CollisionFree(const Node* nearestNode, const Node& newNode) {
-    int x1 = static_cast<int>(nearestNode->x);
-    int y1 = static_cast<int>(nearestNode->y);
+bool RRTStarAR::CollisionFree(const int& nearestNode, const Node& newNode) {
+    int x1 = static_cast<int>(nodes[nearestNode].x);
+    int y1 = static_cast<int>(nodes[nearestNode].y);
     int x2 = static_cast<int>(newNode.x);
     int y2 = static_cast<int>(newNode.y);
 
@@ -108,44 +110,34 @@ bool RRTStarAR::CollisionFree(const Node* nearestNode, const Node& newNode) {
 }
 
 // Function to find the closest neighbor to the 'to' node and calculate the cost min distance considered
-std::pair<int, double> RRTStarAR::FindClosestAndCost(const Node& from, const Node& to) {
-    int closestIndex = -1;
-    double minCost = std::numeric_limits<double>::max();
+std::pair<int, double> RRTStarAR::FindClosestAndCost(const std::vector<Node>& neighbors,  const Node& newNode, int nearest) {
+    double minCost = nodes[nearest].cost + std::sqrt(std::pow(nodes[nearest].x - newNode.x, 2) + std::pow(nodes[nearest].y - newNode.y, 2));
 
-    for (int i = 0; i < nodes.size(); ++i) {
-        if (&nodes[i] == &from) continue;
-
-        double dist = std::sqrt(std::pow(to.x - nodes[i].x, 2) + std::pow(to.y - nodes[i].y, 2));
-        double cost = nodes[i].cost + dist;
-
-        if (cost < minCost && dist < MIN_NODE_DIST) {
-            closestIndex = i;
-            minCost = cost;
+    for (int i = 0; i < neighbors.size(); ++i) {
+        if (CollisionFree(i, newNode) &&
+            (neighbors[i].cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2))) <
+            minCost) {
+            nearest = i;
+            minCost = neighbors[i].cost +
+                      std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2));
         }
     }
-
-    return {closestIndex, minCost};
+    return {nearest, minCost};
 }
 
 // Function to rewire the tree if a lower-cost path is found through the new node
-bool RRTStarAR::Rewire(Node& newNode, int closestIndex) {
+void RRTStarAR::Rewire(const std::vector<Node>& neighbors, Node& newNode, int closestIndex) {
     double currentCost = newNode.cost;
-    double minCost = currentCost;
 
-    for (int i = 0; i < nodes.size(); ++i) {
-        if (&nodes[i] == &newNode || &nodes[i] == &nodes[closestIndex]) continue;
-
-        double dist = std::sqrt(std::pow(newNode.x - nodes[i].x, 2) + std::pow(newNode.y - nodes[i].y, 2));
-        double cost = nodes[i].cost + dist;
-
-        if (cost < minCost) {
-            minCost = cost;
-            newNode.parent = &nodes[i];
-            currentCost = cost;
+    for (int i = 0; i < neighbors.size(); ++i) {
+        if (CollisionFree(i, newNode) &&
+            (newNode.cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2))) <
+            nodes[i].cost) {
+            //@TODO I'm assigning an index that does not exist yet as new node has not been added to the tree
+            nodes[i].parent = nodes.size();
+            nodes[i].cost = newNode.cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2));
         }
     }
-
-    return (currentCost < minCost);
 }
 
 bool RRTStarAR::IsGoalReached(const Node& node) const {
@@ -160,23 +152,25 @@ bool RRTStarAR::IsGoalReached(const Node& node) const {
 std::vector<Node> RRTStarAR::GetPath(){
     std::vector<Node> path;
     Node* node = &nodes.back();
-    while (node != nullptr) {
-        path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), nullptr, 0.0);
-        node = node->parent;
+    while (node->parent >= 0) {
+        path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), -1, 0.0);
+        node = &nodes[node->parent];
     }
+    // Add last point
+    path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), -1, 0.0);
     std::reverse(path.begin(), path.end());
     return path;
 }
 
-std::vector<Node> RRTStarAR::FindNeighboors(const Node& newNode){
-    std::vector<Node> neighboors;
+std::vector<Node> RRTStarAR::FindNeighbors(const Node& newNode){
+    std::vector<Node> neighbors;
     for (const Node& node : nodes) {
         double dist = std::sqrt(std::pow(newNode.x - node.x, 2) + std::pow(newNode.y - node.y, 2));
         if (dist < MIN_NODE_DIST) {
-            neighboors.push_back(node);
+            neighbors.push_back(node);
         }
     }
-    return neighboors;
+    return neighbors;
 }
 
 std::vector<std::pair<int, int>> RRTStarAR::BresenhamLine(int x1, int y1, int x2, int y2) {

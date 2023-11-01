@@ -14,11 +14,13 @@ int main(int argc, char** argv) {
     }
     cv::Mat map = cv::imread(argv[1]); // Replace "your_image.jpg" with the path to your image file// Set your RRT*AR parameters
 
-    double startX = 66.0;
-    double startY = 45.0;
-    double goalX = 46.0;
-    double goalY = 45.0;
-    double stepSize = 5.0;
+    //double startX = 66.0;
+    //double startY = 45.0;
+    double goalX = 65.0;
+    double goalY = 35.0;
+    double startX = 35.0;
+    double startY = 70.0;
+    double stepSize = 8.0;
     double maxIterations = 2000;
     double closeNodePenalty = 1.0; // Adjust this penalty as needed
     double goalReachedRadius = 2.0;
@@ -32,6 +34,10 @@ int main(int argc, char** argv) {
     for (int i = 0; i < path.size(); i++) {
         std::cout << "Node " << i << ": " << path[i].x << ", " << path[i].y << std::endl;
     }
+
+    // draw start and goal points
+    cv::circle(map, cv::Point(static_cast<int>(startY), static_cast<int>(startX)), 3, cv::Scalar(0, 255, 0), -1);
+    cv::circle(map, cv::Point(static_cast<int>(goalY), static_cast<int>(goalX)), 3, cv::Scalar(0, 255, 0), -1);
 
     // Draw the path on the map
     for (int i = 0; i < path.size() - 1; i++) {
