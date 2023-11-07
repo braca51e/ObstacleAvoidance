@@ -17,14 +17,16 @@ void RRTStarAR::GenerateRRTStarAR() {
         Node newNode = Steer(nearestNode, randomNode);
         // Check if the new node is valid (not in collision)
         if (CollisionFree(nearestNode, newNode)) {
-            std::vector<Node> neighbors = FindNeighbors(newNode);
+            std::vector<int> neighbors = FindNeighbors(newNode);
             std::pair<int, double> pair_search = FindClosestAndCost(neighbors, newNode, nearestNode);
             newNode.parent = pair_search.first;
             newNode.cost = pair_search.second;
+
+            nodes.push_back(newNode);
             // Rewire the tree with the new node
-            Rewire(neighbors, newNode, pair_search.first);
+            Rewire(neighbors, newNode);
         }
-        nodes.push_back(newNode);
+
         if (IsGoalReached(newNode)){
             break;
         }
@@ -66,11 +68,7 @@ Node RRTStarAR::Steer(const int& from, const Node& to) const {
     double dy = to.y - nodes[from].y;
     double dist = std::sqrt(dx * dx + dy * dy);
 
-    if (dist <= stepSize) {
-        return to;
-    }
-
-    double ratio = stepSize / dist;
+    double ratio = std::min(stepSize, dist) / dist;
     double newX = nodes[from].x + dx * ratio;
     double newY = nodes[from].y + dy * ratio;
 
@@ -94,13 +92,14 @@ bool RRTStarAR::CollisionFree(const int& nearestNode, const Node& newNode) {
         int y = point.second;
 
         // check if pixel is within bounds
-        if (x < 0 || x >= map.rows || y < 0 || y >= map.cols) {
+        if (x < 0 || x >= map.cols || y < 0 || y >= map.rows) {
             return false;
         }
 
         // Check if the pixel is occupied
-        double mean_pix_value = (map.at<cv::Vec3b>(x, y)[0] + map.at<cv::Vec3b>(x, y)[1] +
-                                 map.at<cv::Vec3b>(x, y)[2])/3.0;
+        // @TODO: OpenCV gets cols first ie y then x
+        double mean_pix_value = (map.at<cv::Vec3b>(y, x)[0] + map.at<cv::Vec3b>(y, x)[1] +
+                                 map.at<cv::Vec3b>(y, x)[2])/3.0;
         mean_pix_value /= 255.0;
         if (mean_pix_value < tau_obs_) {
             return false;
@@ -110,32 +109,38 @@ bool RRTStarAR::CollisionFree(const int& nearestNode, const Node& newNode) {
 }
 
 // Function to find the closest neighbor to the 'to' node and calculate the cost min distance considered
-std::pair<int, double> RRTStarAR::FindClosestAndCost(const std::vector<Node>& neighbors,  const Node& newNode, int nearest) {
+std::pair<int, double>RRTStarAR::FindClosestAndCost(const std::vector<int>& neighbors,  const Node& newNode, int nearest) {
     double minCost = nodes[nearest].cost + std::sqrt(std::pow(nodes[nearest].x - newNode.x, 2) + std::pow(nodes[nearest].y - newNode.y, 2));
 
     for (int i = 0; i < neighbors.size(); ++i) {
-        if (CollisionFree(i, newNode) &&
-            (neighbors[i].cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2))) <
-            minCost) {
-            nearest = i;
-            minCost = neighbors[i].cost +
-                      std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2));
+        if (CollisionFree(neighbors[i], newNode)) {
+            // Find current neighbor in nodes
+            double cost = nodes[neighbors[i]].cost + std::sqrt(std::pow(nodes[neighbors[i]].x - newNode.x, 2) + std::pow(nodes[neighbors[i]].y - newNode.y, 2));
+            // Add penalty if the node's share same parent
+            if (nodes[neighbors[i]].parent == newNode.parent){
+                cost += closeNodePenalty;
+            }
+            if (cost < minCost){
+                minCost = cost;
+                nearest = neighbors[i];
+            }
         }
     }
     return {nearest, minCost};
 }
 
 // Function to rewire the tree if a lower-cost path is found through the new node
-void RRTStarAR::Rewire(const std::vector<Node>& neighbors, Node& newNode, int closestIndex) {
-    double currentCost = newNode.cost;
+void RRTStarAR::Rewire(const std::vector<int>& neighbors, Node& newNode) {
 
     for (int i = 0; i < neighbors.size(); ++i) {
-        if (CollisionFree(i, newNode) &&
-            (newNode.cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2))) <
-            nodes[i].cost) {
-            // @TODO I'm assigning an index that does not exist yet as new node has not been added to the tree
-            nodes[i].parent = nodes.size();
-            nodes[i].cost = newNode.cost + std::sqrt(std::pow(nodes[i].x - newNode.x, 2) + std::pow(nodes[i].y - newNode.y, 2));
+        if (CollisionFree(neighbors[i], newNode)) {
+            double line_cost = std::sqrt(std::pow(nodes[neighbors[i]].x - newNode.x, 2) + std::pow(nodes[neighbors[i]].y - newNode.y, 2));
+            if (newNode.cost + line_cost < nodes[neighbors[i]].cost) {
+                {
+                    nodes[neighbors[i]].parent = nodes.size() - 1;
+                    nodes[neighbors[i]].cost = newNode.cost + line_cost;
+                }
+            }
         }
     }
 }
@@ -153,21 +158,21 @@ std::vector<Node> RRTStarAR::GetPath(){
     std::vector<Node> path;
     Node* node = &nodes.back();
     while (node->parent >= 0) {
-        path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), -1, 0.0);
+        path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), -1, node->cost);
         node = &nodes[node->parent];
     }
     // Add last point
-    path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), -1, 0.0);
+    path.emplace_back(static_cast<int>(node->x), static_cast<int>(node->y), -1, node->cost);
     std::reverse(path.begin(), path.end());
     return path;
 }
 
-std::vector<Node> RRTStarAR::FindNeighbors(const Node& newNode){
-    std::vector<Node> neighbors;
-    for (const Node& node : nodes) {
-        double dist = std::sqrt(std::pow(newNode.x - node.x, 2) + std::pow(newNode.y - node.y, 2));
+std::vector<int> RRTStarAR::FindNeighbors(const Node& newNode){
+    std::vector<int> neighbors;
+    for (int i = 0; i < nodes.size(); ++i) {
+        double dist = std::sqrt(std::pow(newNode.x - nodes[i].x, 2) + std::pow(newNode.y - nodes[i].y, 2));
         if (dist < MIN_NODE_DIST) {
-            neighbors.push_back(node);
+            neighbors.emplace_back(i);
         }
     }
     return neighbors;

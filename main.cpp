@@ -1,49 +1,30 @@
-#include "RrtStar.h"
+#include "FreeSpacePolygon.h"
 
 // Converts degrees to radians.
 #define degreesToRadians(angleDegrees) (angleDegrees * M_PI / 180.0)
 // Converts radians to degrees.
 #define radiansToDegrees(angleRadians) (angleRadians * 180.0 / M_PI)
 
-
 int main(int argc, char** argv) {
+
     // First argument is the path to the image
     if (argc != 2) {
         std::cout << "Usage: ./main <path_to_image>" << std::endl;
         return 1;
     }
-    cv::Mat map = cv::imread(argv[1]); // Replace "your_image.jpg" with the path to your image file// Set your RRT*AR parameters
+    cv::Mat map = cv::imread(argv[1]); // Replace "your_image.jpg" with the path to your image file
 
-    //double startX = 66.0;
-    //double startY = 45.0;
-    double goalX = 65.0;
-    double goalY = 35.0;
-    double startX = 35.0;
-    double startY = 70.0;
-    double stepSize = 8.0;
-    double maxIterations = 2000;
-    double closeNodePenalty = 1.0; // Adjust this penalty as needed
-    double goalReachedRadius = 2.0;
-    double tau_obs = 0.8;
+    Point po(35, 55);  // Example origin point (x, y)
+    double theta_o = 0;  // Example initial angle
 
-    RRTStarAR planner(map, startX, startY, goalX, goalY, stepSize, maxIterations, closeNodePenalty, goalReachedRadius, tau_obs);
-    planner.GenerateRRTStarAR();
-    std::vector<Node> path = planner.GetPath();
-
-    // print each node in the path
-    for (int i = 0; i < path.size(); i++) {
-        std::cout << "Node " << i << ": " << path[i].x << ", " << path[i].y << std::endl;
+    FreeSpacePolygon fsp(map);
+    std::vector<Point> freeSpacePolygon = fsp.calculateFreeSpacePolygon(po, theta_o, map);
+    // Draw points in the image
+    cv::circle(map, cv::Point(po.x, po.y), 1, cv::Scalar(0, 255, 0), -1);
+    for (int i = 0; i < freeSpacePolygon.size(); i++) {
+        cv::circle(map, cv::Point(freeSpacePolygon[i].x, freeSpacePolygon[i].y), 1, cv::Scalar(0, 0, 255), -1);
     }
-
-    // draw start and goal points
-    cv::circle(map, cv::Point(static_cast<int>(startY), static_cast<int>(startX)), 3, cv::Scalar(0, 255, 0), -1);
-    cv::circle(map, cv::Point(static_cast<int>(goalY), static_cast<int>(goalX)), 3, cv::Scalar(0, 255, 0), -1);
-
-    // Draw the path on the map
-    for (int i = 0; i < path.size() - 1; i++) {
-        cv::line(map, cv::Point(static_cast<int>(path[i].y), static_cast<int>(path[i].x)), cv::Point(static_cast<int>(path[i + 1].y), static_cast<int>(path[i + 1].x)), cv::Scalar(0, 0, 255), 2);
-    }
-    cv::imshow("Path", map);
+    cv::imshow("Free Space Polygon", map);
     cv::waitKey(0);
 
     return 0;

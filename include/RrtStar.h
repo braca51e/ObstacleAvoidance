@@ -11,7 +11,7 @@
 #include <cmath>
 #include <opencv2/opencv.hpp>
 
-#define MIN_NODE_DIST 5.05
+#define MIN_NODE_DIST 15.05
 
 struct Node {
     double x, y;
@@ -46,12 +46,12 @@ private:
     int FindNearestNode(const Node& randomNode);
     Node Steer(const int& from, const Node& to) const;
     bool IsValidNode(const Node& node);
-    std::pair<int, double> FindClosestAndCost(const std::vector<Node>& neighbors,  const Node& newNode, int nearest);
-    void Rewire(const std::vector<Node>& neighbors, Node& newNode, int closestIndex);
+    std::pair<int, double> FindClosestAndCost(const std::vector<int>& neighbors,  const Node& newNode, int nearest);
+    void Rewire(const std::vector<int>& neighbors, Node& newNode);
     bool IsGoalReached(const Node& node) const;
     static std::vector<std::pair<int, int>> BresenhamLine(int x1, int y1, int x2, int y2);
     bool CollisionFree(const int& nearestNode, const Node& newNode);
-    std::vector<Node> FindNeighbors(const Node& newNode);
+    std::vector<int> FindNeighbors(const Node& newNode);
 
 };
 

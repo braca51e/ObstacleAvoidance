@@ -122,11 +122,12 @@ Point FreeSpacePolygon::findCollisionPoint(const std::vector<Point>& Lk, std::ve
         for (const Point &q: HCk) {
             int qx = static_cast<int>(q.x);
             int qy = static_cast<int>(q.y);
+            // @TODO: OpenCV gets cols first ie y then x
             //Probability of occupancy if grid == 0 not occupied if grid == 255 occupied
-            double mean_pix_value = (Pm.at<cv::Vec3b>(qx, qy)[0] + Pm.at<cv::Vec3b>(qx, qy)[1] +
-                                       Pm.at<cv::Vec3b>(qx, qy)[2])/3.0;
+            double mean_pix_value = (Pm.at<cv::Vec3b>(qy, qx)[0] + Pm.at<cv::Vec3b>(qy, qx)[1] +
+                                       Pm.at<cv::Vec3b>(qy, qx)[2])/3.0;
             // opencv are reversed
-            if (qx >= 0 && qx < Pm.rows && qy >= 0 && qy < Pm.cols &&
+            if (qx >= 0 && qx < Pm.cols && qy >= 0 && qy < Pm.rows &&
                 (mean_pix_value / 255.0) < tau_obs_) {
                 collisionPoint = q;  // collision cell
                 found = true;
