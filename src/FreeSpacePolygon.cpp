@@ -109,7 +109,7 @@ std::vector<Point> FreeSpacePolygon::halfCircleShift(const std::vector<Point>& H
 Point FreeSpacePolygon::findCollisionPoint(const std::vector<Point>& Lk, std::vector<Point>& HCk, const cv::Mat& Pm){
     Point collisionPoint;
     Point pprev = Lk[0];
-    cv::Mat Pm_dummy = Pm.clone();
+
     bool found = false;
 
     for (const Point &p: Lk) {
